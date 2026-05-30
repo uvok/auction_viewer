@@ -4,18 +4,6 @@
 
 using namespace auction_viewer;
 
-static void printItems(const Presenter& presenter) {
-    const auto& items = presenter.items();
-    int selected = presenter.selected();
-    std::cout << "\nAuction Items:\n";
-    for (size_t i = 0; i < items.size(); ++i) {
-        const auto& it = items[i];
-        std::cout << (i == (size_t)selected ? "> " : "  ")
-                  << i << ": " << it.title
-                  << " (current: " << std::fixed << std::setprecision(2) << it.currentPrice << ")\n";
-    }
-}
-
 class ConsoleUI : public IUI {
 public:
     bool run(Presenter& presenter) override {
@@ -27,16 +15,28 @@ public:
         if (cmd == 's') {
             int idx = 0;
             std::cout << "Index: ";
-            if (std::cin >> idx) presenter.select(idx);
+            if (std::cin >> idx) presenter.selectItem(idx);
         } else if (cmd == 'u') {
             double p = 0.0;
             std::cout << "New price: ";
             if (std::cin >> p) {
-                presenter.updatePrice(p);
+                presenter.updateCurrentPrice(p);
                 std::cout << "Updated.\n";
             }
         }
         return true;
+    }
+
+private:
+    void printItems(const Presenter& presenter) const {
+        std::cout << "\nAuction Items:\n";
+        for (size_t i = 0; i < presenter.getItemCount(); ++i) {
+            const auto* item = presenter.getItem(i);
+            if (!item) continue;
+            std::cout << (i == (size_t)presenter.getSelectedIndex() ? "> " : "  ")
+                      << i << ": " << item->title
+                      << " (current: " << std::fixed << std::setprecision(2) << item->currentPrice << ")\n";
+        }
     }
 };
 
