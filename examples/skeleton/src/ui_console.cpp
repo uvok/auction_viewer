@@ -4,7 +4,9 @@
 
 using namespace auction_viewer;
 
-static void printItems(const std::vector<AuctionItem>& items, int selected) {
+static void printItems(const Presenter& presenter) {
+    const auto& items = presenter.items();
+    int selected = presenter.selected();
     std::cout << "\nAuction Items:\n";
     for (size_t i = 0; i < items.size(); ++i) {
         const auto& it = items[i];
@@ -16,8 +18,8 @@ static void printItems(const std::vector<AuctionItem>& items, int selected) {
 
 class ConsoleUI : public IUI {
 public:
-    bool run(std::vector<AuctionItem>& items, int& selectedIndex) override {
-        printItems(items, selectedIndex);
+    bool run(Presenter& presenter) override {
+        printItems(presenter);
         std::cout << "Commands: [s]elect [u]pdate [q]uit > ";
         char cmd = 0;
         if (!(std::cin >> cmd)) return false;
@@ -25,12 +27,12 @@ public:
         if (cmd == 's') {
             int idx = 0;
             std::cout << "Index: ";
-            if (std::cin >> idx && idx >= 0 && idx < (int)items.size()) selectedIndex = idx;
+            if (std::cin >> idx) presenter.select(idx);
         } else if (cmd == 'u') {
             double p = 0.0;
             std::cout << "New price: ";
             if (std::cin >> p) {
-                items[selectedIndex].currentPrice = p;
+                presenter.updatePrice(p);
                 std::cout << "Updated.\n";
             }
         }

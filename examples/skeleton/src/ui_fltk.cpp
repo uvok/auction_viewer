@@ -1,5 +1,6 @@
 #include "auction_viewer/ui.h"
 #include "auction_viewer/model.h"
+#include "auction_viewer/presenter.h"
 #include <FL/Fl.H>
 #include <FL/Fl_Window.H>
 #include <FL/Fl_Multi_Browser.H>
@@ -13,18 +14,20 @@ using namespace auction_viewer;
 
 class FltkUI : public IUI {
 public:
-    FltkUI(std::vector<AuctionItem>& items): items_(items) {
-        selected_ = 0;
+    FltkUI(Presenter& presenter): presenter_(presenter) {
+        selected_ = presenter_.selected();
+        // register callback to refresh view when presenter updates
+        presenter_.set_on_change([this]() { this->refresh(); });
         build();
     }
 
-    bool run(std::vector<AuctionItem>& /*items*/, int& /*selectedIndex*/) override {
+    bool run(Presenter& /*presenter*/) override {
         Fl::run();
         return false;
     }
 
 private:
-    std::vector<AuctionItem>& items_;
+    Presenter& presenter_;
     int selected_;
     Fl_Window *mainWin{nullptr};
     Fl_Multi_Browser *browser{nullptr};
@@ -48,8 +51,9 @@ private:
     void build() {
         mainWin = new Fl_Window(600, 400, "Auction Viewer - FLTK");
         browser = new Fl_Multi_Browser(10, 10, 280, 380);
-        for (size_t i = 0; i < items_.size(); ++i) {
-            browser->add(items_[i].title.c_str());
+        const auto& items = presenter_.items();
+        for (size_t i = 0; i < items.size(); ++i) {
+            browser->add(items[i].title.c_str());
         }
         browser->callback(cb_select, this);
 
@@ -72,45 +76,53 @@ private:
         update_presenter();
     }
 
+    void refresh() {
+        // repopulate browser and update presenter widgets
+        browser->clear();
+        const auto& items = presenter_.items();
+        for (size_t i = 0; i < items.size(); ++i) browser->add(items[i].title.c_str());
+        if (presenter_.selected() >= 0) browser->select(presenter_.selected() + 1);
+        update_presenter();
+    }
+
     void on_select() {
         int idx = browser->value() - 1;
-        if (idx >= 0 && idx < (int)items_.size()) {
+        const auto& items = presenter_.items();
+        if (idx >= 0 && idx < (int)items.size()) {
             selected_ = idx;
+            presenter_.select(idx);
+            const auto* it = presenter_.currentItem();
             char buf[64];
-            snprintf(buf, sizeof(buf), "%.2f", items_[selected_].currentPrice);
+            snprintf(buf, sizeof(buf), "%.2f", it ? it->currentPrice : 0.0);
             priceInput->value(buf);
             update_presenter();
         }
     }
 
     void on_update() {
-        if (selected_ < 0 || selected_ >= (int)items_.size()) return;
+        if (selected_ < 0) return;
         const char* v = priceInput->value();
         if (!v) return;
         double p = atof(v);
-        items_[selected_].currentPrice = p;
-        // refresh browser text
-        char buf[256];
-        snprintf(buf, sizeof(buf), "%s (current: %.2f)", items_[selected_].title.c_str(), items_[selected_].currentPrice);
-        browser->replace(selected_ + 1, buf);
-        update_presenter();
+        presenter_.updatePrice(p);
     }
 
     void update_presenter() {
-        if (selected_ >= 0 && selected_ < (int)items_.size()) {
-            std::string title = items_[selected_].title + "\n";
+        const auto* it = presenter_.currentItem();
+        if (it) {
+            std::string title = it->title + "\n";
             char pbuf[64];
-            snprintf(pbuf, sizeof(pbuf), "Current: %.2f", items_[selected_].currentPrice);
+            snprintf(pbuf, sizeof(pbuf), "Current: %.2f", it->currentPrice);
             presenterBox->label(title.c_str());
             presenterPrice->label(pbuf);
             // attempt to load image if path present
-            if (!items_[selected_].imagePath.empty()) {
+            if (!it->imagePath.empty()) {
                 Fl_Image* img = nullptr;
                 // try PNG then JPEG
-                img = new Fl_PNG_Image(items_[selected_].imagePath.c_str());
+                img = new Fl_PNG_Image(it->imagePath.c_str());
                 if (!img || img->w() == 0) {
                     delete img;
-                    img = new Fl_JPEG_Image(items_[selected_].imagePath.c_str());
+                    img = new Fl_JPEG_Image(it->imagePath.c_str());
                 }
                 if (img && img->w() > 0) {
                     if (presenterImage) delete presenterImage;
@@ -128,10 +140,10 @@ std::unique_ptr<IUI> make_fltk_ui() {
     class FactoryUI : public IUI {
     public:
         FactoryUI() : impl_(nullptr) {}
-        bool run(std::vector<AuctionItem>& items, int& selectedIndex) override {
-            if (!impl_) impl_ = new FltkUI(items);
+        bool run(Presenter& presenter) override {
+            if (!impl_) impl_ = new FltkUI(presenter);
             // when impl_->run() returns, exit app
-            return impl_->run(items, selectedIndex);
+            return impl_->run(presenter);
         }
     private:
         FltkUI* impl_;

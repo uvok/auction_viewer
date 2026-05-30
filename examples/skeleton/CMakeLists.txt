@@ -10,6 +10,7 @@ add_executable(auction_skeleton
   src/main.cpp
   src/app.cpp
   src/ui_console.cpp
+  src/presenter.cpp
 )
 
 target_include_directories(auction_skeleton PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -22,6 +23,7 @@ if(BUILD_FLTK)
     src/main_fltk.cpp
     src/app.cpp
     src/ui_fltk.cpp
+    src/presenter.cpp
   )
   target_include_directories(auction_skeleton_fltk PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${FLTK_INCLUDE_DIR})
   target_link_libraries(auction_skeleton_fltk PRIVATE ${FLTK_LIBRARIES})

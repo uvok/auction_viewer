@@ -2,6 +2,7 @@
 
 #include "auction_viewer/model.h"
 #include "auction_viewer/ui.h"
+#include "auction_viewer/presenter.h"
 #include <vector>
 #include <memory>
 
@@ -13,9 +14,8 @@ public:
     int run();
 
 private:
-    std::vector<AuctionItem> items_;
+    Presenter presenter_;
     std::unique_ptr<IUI> ui_;
-    void seedDummy();
 };
 
 } // namespace auction_viewer
